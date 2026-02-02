@@ -5,7 +5,7 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, date ,timedelta
 # -------------------- API TOKENS --------------------
 
 SUREPASS_CAR_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTczNDE3MTI4OCwianRpIjoiNDI0ZmM1ZmYtYzBmOC00YmYxLWE1MWQtMmVkYmMyN2Q4YjZhIiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2LmJhZGFmaW5hbmNlX2NvbnNvbGVAc3VyZXBhc3MuaW8iLCJuYmYiOjE3MzQxNzEyODgsImV4cCI6MjM2NDg5MTI4OCwiZW1haWwiOiJiYWRhZmluYW5jZV9jb25zb2xlQHN1cmVwYXNzLmlvIiwidGVuYW50X2lkIjoibWFpbiIsInVzZXJfY2xhaW1zIjp7InNjb3BlcyI6WyJ1c2VyIl19fQ.md1Oaj19QbxeXmjyfdRMJMF50j9c9i_oPtX2UreFKKM"
@@ -31,7 +31,44 @@ firebase_admin.initialize_app(cred, {'databaseURL': firebase_db_url})
 app = Flask(__name__)
 
 # -------------------- Car Report Logic --------------------
+from datetime import datetime, timedelta
+from flask import jsonify
 
+@app.route('/get_today_cars', methods=['GET'])
+def get_today_cars():
+    try:
+        today = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
+
+        # ✅ CORRECT PATH
+        ref = db.reference("/car_reports")
+        results = ref.order_by_child("car_data/date_index").equal_to(today).get()
+
+        if not results:
+            return jsonify({
+                "success": True,
+                "count": 0,
+                "data": []
+            }), 200
+
+        today_cars = [
+            {
+                "id_number": rc,
+                "car_data": node.get("car_data")
+            }
+            for rc, node in results.items()
+        ]
+
+        return jsonify({
+            "success": True,
+            "count": len(today_cars),
+            "data": today_cars
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 def fetch_car_data(id_number):
     url = "https://kyc-api.surepass.io/api/v1/rc/rc-full"
     payload = {"id_number": id_number}
@@ -57,7 +94,7 @@ def save_car_data(id_number, car_data):
 
     # Inject timestamp inside car_data
     if isinstance(car_data, dict):
-        car_data["timestamp"] = timestamp
+        car_data["date_index"] = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
     else:
         print("Warning: car_data not a dict")
         return
