@@ -86,23 +86,8 @@ def fetch_car_data(id_number):
 def check_existing_car_data(id_number):
     return db.reference(f'car_reports/{id_number}').get()
 
-def save_car_data(id_number, car_data):
-    print("loda loda loda")
-
-    from datetime import datetime, timezone
-    timestamp = int(datetime.now(timezone.utc).timestamp() * 1000)  # timezone-aware
-
-    # Inject timestamp inside car_data
-    if isinstance(car_data, dict):
-        car_data["date_index"] = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d")
-    else:
-        print("Warning: car_data not a dict")
-        return
-
-    # Save to Firebase
-    db.reference(f'car_reports/{id_number}').set({
-        'car_data': car_data
-    })
+def save_car_data(id_number, data):
+    db.reference(f'car_reports/{id_number}').set(data)
 
 @app.route('/fetch_car', methods=['POST'])
 def fetch_and_store_car():
